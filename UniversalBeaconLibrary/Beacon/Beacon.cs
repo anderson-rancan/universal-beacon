@@ -25,6 +25,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Devices.Bluetooth.Advertisement;
 using UniversalBeaconLibrary.Annotations;
+using System.IO;
 
 namespace UniversalBeaconLibrary.Beacon
 {
@@ -133,6 +134,18 @@ namespace UniversalBeaconLibrary.Beacon
             }
         }
 
+        private ushort _manufacturerId;
+        public ushort ManufacturerId
+        {
+            get { return _manufacturerId; }
+            set
+            {
+                if (_manufacturerId == value) return;
+                _manufacturerId = value;
+                OnPropertyChanged();
+            }
+        }
+
         /// <summary>
         /// Construct a new Bluetooth beacon based on the received advertisement.
         /// Tries to find out if it's a known type, and then parses the contents accordingly.
@@ -205,6 +218,10 @@ namespace UniversalBeaconLibrary.Beacon
                     // This beacon is according to the Eddystone specification - parse data
                     ParseEddystoneData(btAdv);
                 }
+                else if (BeaconType == BeaconTypeEnum.iBeacon)
+                {
+                    ParseIBeaconData(btAdv);
+                }
                 else if (BeaconType == BeaconTypeEnum.Unknown)
                 {
                     // Unknown beacon type
@@ -226,6 +243,8 @@ namespace UniversalBeaconLibrary.Beacon
                     //var manufacturerDataString = $"0x{manufacturerData.CompanyId.ToString("X")}: {BitConverter.ToString(manufacturerData.Data.ToArray())}";
                     //Debug.WriteLine("Manufacturer data: " + manufacturerDataString);
 
+                    ManufacturerId = manufacturerData.CompanyId;
+
                     var manufacturerDataArry = manufacturerData.Data.ToArray();
                     if (BeaconFrameHelper.IsProximityBeaconPayload(manufacturerData.CompanyId, manufacturerDataArry))
                     {
@@ -243,6 +262,34 @@ namespace UniversalBeaconLibrary.Beacon
                         {
                             BeaconFrames.Add(beaconFrame);
                         }
+                    }
+                }
+            }
+        }
+
+        private void ParseIBeaconData(BluetoothLEAdvertisementReceivedEventArgs btAdv)
+        {
+            foreach (var dataSection in btAdv.Advertisement.DataSections)
+            {
+                if (dataSection.DataType == 0x09)
+                {
+                    var beaconFrame = dataSection.Data.ToArray().CreateIBeaconFrame();
+
+                    var found = false;
+
+                    for (var i = 0; i < BeaconFrames.Count; i++)
+                    {
+                        if (BeaconFrames[i].GetType() == beaconFrame.GetType())
+                        {
+                            BeaconFrames[i].Update(beaconFrame);
+                            found = true;
+                            break;  // Don't analyze any other known frames of this beacon
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        BeaconFrames.Add(beaconFrame);
                     }
                 }
             }

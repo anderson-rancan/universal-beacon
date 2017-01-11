@@ -37,6 +37,11 @@ namespace UniversalBeaconLibrary.Beacon
             TelemetryFrameType = 0x20
         }
 
+        public static BeaconFrameBase CreateIBeaconFrame(this byte[] payload)
+        {
+            return new IBeaconFrame(payload);
+        }
+
         /// <summary>
         /// Analyzes the payload of the Bluetooth Beacon frame and instantiates
         /// the according specialized Bluetooth frame class.
