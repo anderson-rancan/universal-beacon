@@ -25,6 +25,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Devices.Bluetooth.Advertisement;
 using UniversalBeaconLibrary.Annotations;
+using XamarinBeacon.Beacon;
 
 namespace UniversalBeaconLibrary.Beacon
 {
@@ -38,33 +39,12 @@ namespace UniversalBeaconLibrary.Beacon
     /// </summary>
     public class Beacon : INotifyPropertyChanged
     {
-        private readonly Guid _eddystoneGuid = new Guid("0000FEAA-0000-1000-8000-00805F9B34FB");
-
-        public enum BeaconTypeEnum
-        {
-            /// <summary>
-            /// Bluetooth LE advertisment that is not recognized as one of the beacon formats
-            /// supported by this library.
-            /// </summary>
-            Unknown,
-            /// <summary>
-            /// Beacon conforming to the Google Eddystone specification.
-            /// </summary>
-            Eddystone,
-            /// <summary>
-            /// Beacon conforming to the Apple iBeacon specification.
-            /// iBeacon is a Trademark of Apple Inc.
-            /// Note: the beacon broadcast payload is not parsed by this library.
-            /// </summary>
-            iBeacon
-        }
-
         /// <summary>
         /// Type of this beacon.
         /// Defines how the beacon will parse the individual frames to extract information from the
         /// advertisements.
         /// </summary>
-        public BeaconTypeEnum BeaconType { get; set; } = BeaconTypeEnum.Unknown;
+        public BeaconType BeaconType { get; set; } = BeaconType.Unknown;
 
         /// <summary>
         /// List of all the different frames that have been observed for this beacon so far.
@@ -161,7 +141,7 @@ namespace UniversalBeaconLibrary.Beacon
         /// Manually create a new Beacon instance.
         /// </summary>
         /// <param name="beaconType">Beacon type to use for this manually constructed beacon.</param>
-        public Beacon(BeaconTypeEnum beaconType)
+        public Beacon(BeaconType beaconType)
         {
             BeaconType = beaconType;
         }
@@ -196,11 +176,9 @@ namespace UniversalBeaconLibrary.Beacon
                 {
                     // If we have multiple service UUIDs and already recognized a beacon type, 
                     // don't overwrite it with another service Uuid.
-                    if (BeaconType == BeaconTypeEnum.Unknown)
+                    if (BeaconType == BeaconType.Unknown)
                     {
-                        BeaconType = serviceUuid.Equals(_eddystoneGuid)
-                            ? BeaconTypeEnum.Eddystone
-                            : BeaconTypeEnum.Unknown;
+                        BeaconType = serviceUuid.ToBeaconType();
                     }
                 }
             }
@@ -212,12 +190,15 @@ namespace UniversalBeaconLibrary.Beacon
             // Data sections
             if (btAdv.Advertisement.DataSections.Any())
             {
-                if (BeaconType == BeaconTypeEnum.Eddystone)
+                if (BeaconType == BeaconType.Eddystone)
                 {
-                    // This beacon is according to the Eddystone specification - parse data
                     ParseEddystoneData(btAdv);
                 }
-                else if (BeaconType == BeaconTypeEnum.Unknown)
+                else if (BeaconType == BeaconType.AXABeacon)
+                {
+                    ParseAxaBeaconData(btAdv);
+                }
+                else if (BeaconType == BeaconType.Unknown)
                 {
                     // Unknown beacon type
                     //Debug.WriteLine("\nUnknown beacon");
@@ -243,7 +224,7 @@ namespace UniversalBeaconLibrary.Beacon
                     var manufacturerDataArry = manufacturerData.Data.ToArray();
                     if (BeaconFrameHelper.IsProximityBeaconPayload(manufacturerData.CompanyId, manufacturerDataArry))
                     {
-                        BeaconType = BeaconTypeEnum.iBeacon;
+                        //BeaconType = BeaconType.iBeacon;
                         //Debug.WriteLine("iBeacon Frame: " + BitConverter.ToString(manufacturerDataArry));
 
                         var beaconFrame = new ProximityBeaconFrame(manufacturerDataArry);
@@ -258,6 +239,39 @@ namespace UniversalBeaconLibrary.Beacon
                             BeaconFrames.Add(beaconFrame);
                         }
                     }
+                }
+            }
+        }
+
+
+        private void ParseAxaBeaconData(BluetoothLEAdvertisementReceivedEventArgs btAdv)
+        {
+            BeaconFrameBase beaconFrame = null;
+
+            if (btAdv.Advertisement.DataSections.Any(_ => _.DataType == 9))
+            {
+                var data = btAdv.Advertisement.DataSections.First(_ => _.DataType == 9).Data.ToArray();
+
+                beaconFrame = new AxaCompleteNameFrame(data);
+            }
+            else if (btAdv.Advertisement.DataSections.Any(_ => _.DataType == 22))
+            {
+                var data = btAdv.Advertisement.DataSections.First(_ => _.DataType == 22).Data.ToArray();
+
+                beaconFrame = new AxaBatTempHumFrame(data);
+            }
+
+            if (beaconFrame != null)
+            {
+                var existingFrame = BeaconFrames.FirstOrDefault(_ => _.GetType() == beaconFrame.GetType());
+
+                if (existingFrame != null)
+                {
+                    existingFrame.Update(beaconFrame);
+                }
+                else
+                {
+                    BeaconFrames.Add(beaconFrame);
                 }
             }
         }
@@ -311,6 +325,7 @@ namespace UniversalBeaconLibrary.Beacon
                             }
                         }
                     }
+
                     if (!found)
                     {
                         BeaconFrames.Add(beaconFrame);

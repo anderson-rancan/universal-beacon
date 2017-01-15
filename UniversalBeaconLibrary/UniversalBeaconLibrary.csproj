@@ -113,11 +113,14 @@
     <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Beacon\AxaBatTempHumFrame.cs" />
+    <Compile Include="Beacon\AxaCompleteNameFrame.cs" />
     <Compile Include="Beacon\Beacon.cs" />
     <Compile Include="Beacon\BeaconException.cs" />
     <Compile Include="Beacon\BeaconFrameBase.cs" />
     <Compile Include="Beacon\BeaconFrameHelper.cs" />
     <Compile Include="Beacon\BeaconManager.cs" />
+    <Compile Include="Beacon\BeaconType.cs" />
     <Compile Include="Beacon\KnownManufacturers.cs" />
     <Compile Include="Beacon\ProximityBeaconFrame.cs" />
     <Compile Include="Beacon\TlmEddystoneFrame.cs" />

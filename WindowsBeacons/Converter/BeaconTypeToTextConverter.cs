@@ -24,16 +24,16 @@ namespace WindowsBeacons.Converter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            if (value is Beacon.BeaconTypeEnum)
+            if (value is BeaconType)
             {
-                var beaconType = (Beacon.BeaconTypeEnum)value;
+                var beaconType = (BeaconType)value;
                 switch (beaconType)
                 {
-                    case Beacon.BeaconTypeEnum.Unknown:
+                    case BeaconType.Unknown:
                         return "Unknown";
-                    case Beacon.BeaconTypeEnum.Eddystone:
+                    case BeaconType.Eddystone:
                         return "Eddystone";
-                    case Beacon.BeaconTypeEnum.iBeacon:
+                    case BeaconType.iBeacon:
                         return "iBeacon";
                     default:
                         throw new ArgumentOutOfRangeException();
